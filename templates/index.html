@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Custom webChat widget</title>
+</head>
+<body>
+
+  <script src="https://cdn.botpress.cloud/webchat/v2.1/inject.js"></script>
+  <script src="https://mediafiles.botpress.cloud/e77f2c3c-1859-4b96-947e-e1096bef5737/webchat/v2.1/config.js"></script>
+  <script>
+    let conversationId = null;
+    let uploadCounter = 0;
+
+    // Listen for the 'conversation' event to capture the conversation ID
+    window.botpress.on('conversation', (id) => {
+      conversationId = id;
+      console.log('Conversation ID:', conversationId);
+    });
+
+    // Handle custom file upload event
+    window.botpress.on('customEvent', (event) => {
+      console.log(event);
+      console.log("id " + conversationId);
+      if (event.text === 'You can choose a file') {
+        const fileInput = document.createElement('input');
+        fileInput.type = 'file';
+        fileInput.addEventListener('change', (event) => {
+          const file = event.target.files[0];
+          console.log("Selected file:", file);
+
+          const formData = new FormData();
+          formData.append('file', file, file.name);
+          formData.append('id', conversationId);
+
+          // Send file to Flask backend
+          fetch('/Save_Image_in_Bucket', {  // Replace with your backend URL
+            method: 'POST',
+            body: formData
+          })
+          .then(response => response.json())
+          .then(data => {
+            if (data.file_url) {
+              console.log('File uploaded:', data.file_url);
+              console.log('Upload Counter:', data.upload_counter);
+              uploadCounter = data.upload_counter;
+              window.botpress.sendEvent({
+                type: 'customEvent',
+                file_url: data.file_url,
+                upload_counter: uploadCounter
+              });
+            } else {
+              console.error('Upload failed:', data.error);
+            }
+          })
+          .catch(error => {
+            console.error('Error uploading file:', error);
+          });
+
+          // Proceed with file upload logic here
+        });
+
+        // Trigger the file dialog programmatically
+        fileInput.click();
+      }
+    });
+
+  
+  </script>
+</body>
+</html>
